@@ -1,4 +1,4 @@
-# SIM-NFVO - NFVO simulator with Web UI
+# SIM-NFVO - NFVO simulator
 For ETSI NFV MANO NFV Orchestrator simulator including Web UI
 
 # Features
