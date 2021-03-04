@@ -1,0 +1,117 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>VNF event logs</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<script src="https://code.jquery.com/jquery-latest.js"></script>
+</head>
+
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+
+<body style="margin:0;">
+
+<!-- Top menu bar -->
+<div class="topbar">
+    <table class="screen-frame">
+        <tr>
+            <td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+            <td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/records">Records</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+        </tr>
+    </table>
+</div>
+<!-- // Top menu bar -->
+
+<!-- Page title -->
+<div class="screen-frame" style="margin-top:50px;">
+    <table id="titlebar">
+        <tr>
+            <td class="title">VNF event logs</td>
+        </tr>
+        <tr>
+            <td class="site">{{ site_name }}</td>
+        </tr>
+    </table>
+</div>
+<!-- // Page title -->
+
+<!-- Main list -->
+<table id="contents" class="screen-frame list">
+	<tbody>
+	<tr>
+		<th width="280">Event / Job</th>
+		<th width="280">VNF instance</th>
+		<th width="80">Start</th>
+		<th width="80">End</th>
+		<th width="100">User</th>
+		<th>Result</th>
+	</tr>
+	{% for event in events.events|sort(attribute='start_time', reverse=true) %}
+	<tr>
+		<td style="text-align:left; padding:0 0 0 10px;">
+			<div>
+				<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/stack-line-24.png') }}">
+				<span name="name"><a style="font-size:16px; vertical-align:middle;" href="/vnf/eventLogs/{{ event.job_id }}">{{ event.event }}</a></span>
+			</div>
+			<div name="id" style="color:#999;">{{ event.job_id }}</div>
+		</td>
+		<td style="text-align:left;">
+			<!--<div name="name" style="font-size:16px; vertical-align:middle;">{{ event.vnfi_name }}</div>-->
+			<div name="name" style="vertical-align:middle;">{{ event.vnfi_name }}</div>
+			<div name="id" style="color:#999;">{{ event.vnfi_id }}</div>
+		</td>
+		<td>{{ event.start_time }}</td>
+		<td>{{ event.end_time == '0000-00-00 00:00:00' and ' ' or event.end_time }}</td>
+		<td>{{ event.trigger_point }}</td>
+		<td style="text-align:left;">{{ event.result }}</td>
+	</tr>
+	{% endfor %}
+	</tbody>
+</table>
+<!-- // Main list -->
+
+<!-- Pagination -->
+<style>
+.paging { text-align:center; font-size:0; margin-top:30px; vertical-align:middle; }
+.paging li { display:inline-block; }
+.paging li a { font-size:12px; overflow:hidden; display:block; width:30px; height:30px; border:0px solid #eee; line-height:30px; margin-left:5px; }
+.paging li a:hover { background-color:black; color:white; }
+.paging li.prev a,
+.paging li.next a { width:50px; }
+.paging li a.curpage { color:red; border:1px solid red; }
+.paging li a.curpage:hover { text-decoration:none; background-color:white; }
+</style>
+
+<ol class="paging">
+	{% set total_page = (events.total_count|int/perpage)|round(method='ceil')|int %}
+	{% set first = curpage-5>0 and curpage-5 or 1 %}
+	{% set end = total_page>=first+10 and first+10 or total_page+1 %}
+	<li class="prev"><a href="/vnf/eventLogs/page/{{ curpage-1>0 and curpage-1 or 1 }}">Prev</a></li>
+	{% for pn in range( first, end ) %}
+	{% if pn == curpage %}
+	<li><a class="curpage">{{ pn }}</a></li>
+	{% else %}
+	<li><a href="/vnf/eventLogs/page/{{ pn }}">{{ pn }}</a></li>
+	{% endif %}
+	{% endfor %}
+	<li class="next"><a href="/vnf/eventLogs/page/{{ curpage+1<total_page and curpage+1 or total_page }}">Next</a></li>
+</ol>
+<!-- // Pagination -->
+
+<!-- Placeholder -->
+<div class="screen-frame" style="padding:100px 0 0 0;"></div>
+<!-- // Placeholder -->
+
+</body>
+</html>

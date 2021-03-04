@@ -1,0 +1,4 @@
+#!/bin/sh
+# delete file older than 3 days
+
+find ./jobs -ctime +3 -exec rm -f {} \;

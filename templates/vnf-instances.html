@@ -1,0 +1,365 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>VNF instances</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<script src="https://code.jquery.com/jquery-latest.js"></script>
+
+<script>
+
+/* setTimeout(function() { location.reload(); }, 10000); */
+
+function toggle_req_result_text() {
+    state = $('#req-result-text-state').val();
+    if(state == 'visible') {
+        $('#req-result-text').hide();
+        $('#req-result-text-toggle').html('open');
+        $('#req-result-text-state').val('hidden');
+    }
+    else {
+        $('#req-result-text').show();
+        $('#req-result-text-toggle').html('close');
+        $('#req-result-text-state').val('visible');
+    }
+}
+
+
+function toggle_jobchk_result_text() {
+    state = $('#jobchk-result-text-state').val();
+    if(state == 'visible') {
+        $('#jobchk-result-text').hide();
+        $('#jobchk-result-text-toggle').html('open');
+        $('#jobchk-result-text-state').val('hidden');
+        $('#jobchk-result-text-refresh').hide();
+    }
+    else {
+        $('#jobchk-result-text-refresh').show();
+        $('#jobchk-result-text').show();
+        $('#jobchk-result-text-toggle').html('close');
+        $('#jobchk-result-text-state').val('visible');
+    }
+}
+
+
+function output_result_job_refresh(joburl) {
+    $.ajax({
+        type: 'GET',
+        url: joburl,
+        dataType: 'text',
+        error: function() {
+            alert('communication to get job status error');
+        },
+        success: function(data, textStatus, request) {
+            $('#jobchk-result-text').css('color','#eee');
+            setTimeout(function(){
+                $('#jobchk-result-text').html(data);
+                $('#jobchk-result-text').css('color','#000');
+                }, 100);
+        }
+    });
+}
+
+
+function lcop_ajax(method, uri, system, body) {
+	$.ajax({
+		type: method,
+		url: uri,
+		dataType: 'text',
+        data: body,
+		error: function(jqXHR, textStatus, errorThrown) {
+			if (uri.indexOf("scaleVnf")>0) {
+				if(errorThrown == 'FORBIDDEN') {
+					alert('Required settings for VNFC instances!!');
+				}
+			}
+			else {
+				alert('communication error: '+jqXHR);
+			}
+		},
+		success: function(data, textStatus, request) {
+			var job_id = request.getResponseHeader('X-Job-ID');
+
+			$('#modal-confirm').hide();
+			$('#output-result').css('visibility','visible');
+            line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+                '<span style="display:inline-block; vertical-align:middle;">Request to '+lcop+'</span>' +
+                '<span id="req-result-text-toggle" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_req_result_text();">close</span>' +
+                '</div>' +
+                '<div id="req-result-text" class="result">'+data+'</div>' +
+                '<input id="req-result-text-state" type="hidden" value="visible">';
+			$('#output-result').append(line);
+
+			if (job_id == '') return;
+
+			joburl = '/' + system + '/jobs/' + job_id;
+
+			$.ajax({
+				type: 'GET',
+				url: joburl,
+				dataType: 'text',
+				error: function() {
+					alert('communication to get job status error');
+				},
+				success: function(data, textStatus, request) {
+                    line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+                        '<span style="display:inline-block; vertical-align:middle;">Check job status</span>' +
+                        '<span id="jobchk-result-text-toggle" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_jobchk_result_text();">close</span>'+
+                        '<span id="jobchk-result-text-refresh" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="output_result_job_refresh(\''+joburl+'\');">refresh</span>' +
+                        '</div>' +
+                        '<div id="jobchk-result-text" class="result">'+data+'</div>' +
+                        '<input id="jobchk-result-text-state" type="hidden" value="visible">';
+					$('#output-result').append(line);
+				}
+			});
+
+		}
+	});
+}
+
+
+function set_modal_lcop_abort_info(vnfi_id) {
+	$.ajax({
+		type: 'GET',
+		url: '/vnf/lastLCevent/' + vnfi_id,
+		dataType: 'json',
+		error: function(jqXHR, textStatus, errorThrown) {
+			alert('communication error: '+jqXHR);
+		},
+		success: function(data, textStatus, request) {
+			$('#lcop-modal-title').html('Abort L/C operation');
+			line = '' +
+				'<table>' +
+					'<tr> ' +
+					'<td style="text-align:left; border:1px solid black; background-color:#333; color:#fff;">' +
+					'<span class="spec-val" style="font-size:16px;">'+data.vnfi_name+'</span></br></br>' +
+					'<span class="spec-key">id</span><span class="spec-val">'+vnfi_id+'</span></br>' +
+					'<span class="spec-key">event</span><span class="spec-val">'+data.event+'</span>' +
+					'<span class="spec-key">start</span><span class="spec-val">'+data.start_time+'</span></br>' +
+					'<span class="spec-key">job_id</span><span class="spec-val">'+data.job_id+'</span>' +
+					'<input id="abort-job-id" type="hidden" value="'+data.job_id+'">' +
+					'</td>' +
+					'</tr>' +
+				'</table>';
+			$('#modal-lcop-info').html(line);
+			$('#lcop-modal').show();
+		}
+	});
+}
+
+
+function open_lcop_popup(lcop, elem) {
+
+	vnfi_id = $(elem).parent().siblings('td[name=name-id]').children('span[name=id]').text();
+	vnfi_name = $(elem).parent().siblings('td[name=name-id]').children('span[name=name]').text();
+	ns_id = $(elem).parent().siblings('td[name=ns-name-id]').children('span[name=ns-id]').text();
+	ns_name = $(elem).parent().siblings('td[name=ns-name-id]').children('span[name=ns-name]').text();
+	provider = $(elem).parent().siblings('td[name=provider]').text();
+	create = $(elem).parent().siblings('td[name=create]').text();
+
+	$('#lcop-name').val(lcop);
+	$('#vnfi-id').val(vnfi_id);
+
+    if (lcop == 'clean') {
+		$('#lcop-modal-title').html('Clean VNF');
+        line = '' +
+            '<table>' +
+                '<tr> ' +
+				'<td style="text-align:left; border:1px solid black; background-color:#333; color:#fff;">' +
+				'<span class="spec-val" style="font-size:16px;">'+vnfi_name+'</span>' +
+				'</br></br><span class="spec-key">id</span><span class="spec-val">'+vnfi_id+'</span>' +
+				'</br><span class="spec-key">ns-name</span><span class="spec-val">'+ns_name+'</span>' +
+				'<span class="spec-key">ns-id</span><span class="spec-val">'+ns_id+'</span>' +
+				'</br><span class="spec-key">provider</span><span class="spec-val">'+provider+'</span>' +
+				'<span class="spec-key">create</span><span class="spec-val">'+create+'</span>' +
+				'</td>' +
+                '</tr>' +
+            '</table>';
+        $('#modal-lcop-info').html(line);
+		$('#lcop-modal').show();
+    }
+    else if (lcop == 'abort') {
+		set_modal_lcop_abort_info(vnfi_id);
+	}
+}
+
+
+function run_lcop() {
+	lcop = $('#lcop-name').val();
+	vnfi_id = $('#vnfi-id').val();
+	if (lcop == 'clean') {
+		lcop_ajax('POST', '/lcop/cleanVnf/'+vnfi_id, 'cms', '');
+	}
+	else if (lcop == 'abort') {
+		job_id = $('#abort-job-id').val();
+		lcop_ajax('POST', '/lcop/abort/'+job_id, 'vnfm', '');
+	}
+}
+
+
+function close_lcop_popup() {
+	$('#output-result').css('visibility','hidden');
+	$('#output-result').html('');
+	$('#modal-confirm').show();
+	$('#lcop-modal').hide();
+};
+
+</script>
+</head>
+
+<body>
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+<div class="topbar">
+	<table class="screen-frame">
+		<tr>
+			<td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+			<td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/records">Records</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+		</tr>
+	</table>
+</div>
+
+
+<div class="screen-frame" style="padding:50px 0 0 0;"></div>
+<div class="screen-frame">
+	<table id="titlebar">
+		<tr>
+			<td class="title">VNF instances</td>
+		</tr>
+		<tr>
+			<td class="site">{{ site_name }}</td>
+		</tr>
+	</table>
+</div>
+
+<style>
+.badge-orange { border-radius:0px; padding:2px 4px 2px 4px; border:0px solid orange; color:white; background-color:orange; }
+.badge-black { border-radius:0px; padding:2px 4px 2px 4px; border:0px solid black; color:white; background-color:black; }
+.badge-grey { border-radius:0px; padding:2px 4px 2px 4px; border:0px solid grey; color:white; background-color:grey; }
+.badge-silver { border-radius:0px; padding:2px 4px 2px 4px; border:0px solid silver; color:white; background-color:silver; }
+.badge-red { border-radius:0px; padding:2px 4px 2px 4px; border:0px solid red; color:white; background-color:red; }
+.badge-red-line { border-radius:0px; padding:2px 4px 2px 4px; border:1px solid red; color:red; background-color:white; }
+
+.clean:hover { border:0px solid red; color:white; background-color:red; cursor:pointer; border-radius:3px; }
+.clean:hover span { display:none; }
+.clean:hover:before { content:"clean"; padding:0 10px 0 10px; }
+
+.blinking{
+	-webkit-animation:blink 1.5s ease-in-out infinite alternate;
+	-moz-animation:blink 1.5s ease-in-out infinite alternate;
+	animation:blink 1.5s ease-in-out infinite alternate;
+}
+@-webkit-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@-moz-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+.modal-button .confirm:hover { background-color:red; color:white;}
+.modal-button .cancel:hover { background-color:black; color:white;}
+.spec-key { font-family:Open Sans; font-size:12px; text-align:left; padding-left:5px; color:tomato;}
+.spec-val { font-family:Roboto Mono; padding-left:5px; font-size: 12px;}
+
+.op-button-orange { border-radius:3px; padding:2px 4px 2px 4px; border:1px solid orange; color:orange; background-color:white; cursor:pointer; font-family:Roboto Mono; font-size:12px; }
+
+.abort:hover { color:white; background-color:red; animation:none; cursor:pointer; border-radius:3px; }
+.abort:hover span { display:none; }
+.abort:hover:before { content:"abort"; padding:0 10px 0 10px; }
+
+</style>
+
+<table id="contents" class="screen-frame list">
+	<tbody>
+	<tr>
+		<th width="280">VNF instance</th>
+		<th width="280">Network service</th>
+		<th width="100">Flavor</th>
+		<th width="100">Lifecycle</th>
+		<th width="80">Status</th>
+		<th width="100">Provider</th>
+		<th width="80">Create</th>
+		<th>EMS IP</th>
+	</tr>
+	{% for vnfi in vnfis.vnf|sort(attribute='create_time', reverse=true) %}
+	<tr>
+		<td name="name-id" style="text-align:left; padding:0 0 0 10px;">
+			<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/terminal-window-line.png') }}">
+			{% if vnfi.status == 'In Service' %}
+			<a href="/vnf/instances/{{ vnfi.vnfi_id }}"><span name="name" style="font-size:16px; vertical-align:middle;">{{ vnfi.vnfi_name }}</span></a>
+			{% else %}
+			<a href="/vnf/instances/{{ vnfi.vnfi_id }}"><span name="name" style="font-size:16px; vertical-align:middle;">{{ vnfi.vnfi_name }}</span></a>
+			<!-- <span name="name" style="font-size:16px; vertical-align:middle;">{{ vnfi.vnfi_name }}</span> -->
+			{% endif %}
+			</br>
+			<span name="id" style="color:#999;">{{ vnfi.vnfi_id }}</span>
+		</td>
+		<td name="ns-name-id" style="text-align:left;"><span name="ns-name">{{ vnfi.nsi_name }}</span></br><span name="ns-id" style="color:#999;">{{ vnfi.nsi_id }}</span></td>
+		<td name="flavor-id">{{ vnfi.flavor_id }}</td>
+
+		{% if vnfi.lifecycle_operation == 'Inhibit' %}
+		<td name="lcop"><span class="badge-silver">{{ vnfi.lifecycle_operation }}</span></td>
+		{% elif vnfi.lifecycle_operation == 'Update' %}
+		<td name="lcop"><span class="badge-orange">{{ vnfi.lifecycle_operation }}</span></td>
+		{% elif vnfi.lifecycle_operation == '' %}
+		<td name="lcop"></td>
+		{% else %}
+		<td name="lcop"><span class="badge-orange blinking abort" onClick="open_lcop_popup('abort', this);"><span>{{ vnfi.lifecycle_operation }}</span></span></td>
+		{% endif %}
+
+		{% if vnfi.status == 'In Service' %}
+		<td name="status"><span style="color:green;">{{ vnfi.status }}</span></td>
+		{% elif vnfi.status == 'Error' %}
+		<td name="status"><span class="badge-red-line clean" style="cursor:pointer;" onClick="open_lcop_popup('clean', this);"><span>{{ vnfi.status }}</span></span></td>
+		{% else %}
+		<td name="status"><span>{{ vnfi.status }}</span></td>
+		{% endif %}
+
+		<td name="provider">{{ vnfi.provider }}</td>
+		<td name="create">{{ vnfi.create_time }}</td>
+		<td name="ems-ip">{{ vnfi.ems_ip }}</td>
+	</tr>
+	{% endfor %}
+	</tbody>
+</table>
+
+
+<!-- The lifecycle operations modal -->
+<div id="lcop-modal" class="modal">
+
+	<input type="hidden" id="vnfi-id" value="">
+	<input type="hidden" id="vnfi-name" value="">
+	<input type="hidden" id="lcop-name" value="">
+
+    <div class="w700 modal-content">
+        <div style="border-bottom: 1px solid black; padding-bottom:10px; margin-bottom:20px;">
+            <img style="vertical-align:middle;" src="{{ url_for('static', filename='images/compass-discover-line-32.png') }}">
+            <span id="lcop-modal-title" class="modal-title" style="vertical-align:middle;"></span>
+        </div>
+        <div id="modal-lcop-info"> </div>
+        <table id="modal-confirm-close" style="margin-top:20px;">
+            <tr>
+                <td id="modal-confirm" width="50%" class="modal-button">
+                    <div style="width:100%;" class="confirm" onClick="run_lcop();">
+                        <span> RUN </span>
+                    </div>
+                </td>
+                <td class="modal-button">
+                    <div style="width:100%;" class="cancel" onClick="close_lcop_popup();">
+                        <span> CLOSE </span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <div id="output-result"> </div>
+    </div>
+</div>
+<!-- // The lifecycle operations modal -->
+
+
+</body>
+</html>

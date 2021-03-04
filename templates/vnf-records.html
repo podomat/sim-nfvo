@@ -1,0 +1,584 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>VNF records</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<script src="https://code.jquery.com/jquery-latest.js"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='scripts/preins.js') }}"></script>
+
+<style>
+.ns-list-item { text-align:left; padding-top:10px; }
+.ns-name-button { cursor:pointer; font-size:12px; padding:0 3px 0 3px; font-family:Open Sans; }
+.ns-name-button:hover { text-decoration: underline; }
+#ns-name { width:290px; }
+input.vnfr-name { padding:5px; width:200px; margin-left:40px; }
+.input-vnfr-name { vertical-align:middle; margin-top:10px; }
+.add-vnfr-button { height:20px; display:inline-block; cursor:pointer; background-color:green; padding:0px 5px; margin-left:5px;border-radius:10px; color:white; }
+.aside-vnfr-name { padding:5px 0px 5px 20px; }
+.aside-vnfr-icon { vertical-align:middle; }
+.aside-vnfr-add-icon { vertical-align:middle; cursor:pointer; opacity:0.2; }
+.aside-vnfr-add-icon:hover { opacity:1; }
+
+.vnfr-json-top { text-align:left; margin-left:20px; }
+.vnfr-json-text { width:800px; height:800px; resize:none; font-family:'Roboto Mono'; padding:20px; border:0; margin-left:20px; background-color:#f3f4f6; border-radius:10px; }
+.vnfr-json-menu-save { margin-left:10px; opacity:0.2; vertical-align:bottom; width:36px;}
+.vnfr-json-menu-save:hover { opacity:1; }
+.vnfr-json-title { vertical-align:middle; font-size:18px; font-family:Oswald; margin:0 20px 0 5px;}
+
+.output-result { visibility: hidden; }
+.output-result-job-refresh { opacity:0.2; cursor:pointer; padding-left:10px; vertical-align:middle; }
+.output-result-job-refresh:hover { opacity:1; }
+
+.lcop-modal-info-item-key { font-family: Open Sans; font-size:16px; text-align:right; color:#aaa; width:20%; }
+.lcop-modal-info-item-value { font-family: Open Sans; font-size:32px; text-align:left; }
+
+.modal-loading { background-color: grey; margin: 10% auto; border: 1px solid #888; width: 480px; height: 360px; text-align: center; }
+
+.vnfi-badge-green { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid green; color:white; background-color:green; }
+.vnfi-badge-grey { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid grey; color:white; background-color:grey; }
+.vnfi-badge-blue { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid blue; color:white; background-color:blue; }
+.vnfi-lcop-button { border-radius:3px; padding:2px 4px 2px 4px; border:1px solid orange; color:orange; background-color:white; cursor:pointer; font-family:Roboto Mono; font-size:12px; }
+.vnfi-lcop-button:hover { color:white; background-color:orange; }
+
+.spec-key { font-family:Open Sans; font-size:12px; text-align:left; padding-left:5px; color:tomato;}
+.spec-val { font-family:Roboto Mono; padding-left:5px; font-size: 12px;}
+
+.popup-info-base { text-align:left; border:0px solid black; background-color:#333; color:#fff; }
+</style>
+
+<script type="text/javascript">
+
+function toggle_req_result_text() {
+    state = $('#req-result-text-state').val();
+    if(state == 'visible') {
+        $('#req-result-text').hide();
+        $('#req-result-text-toggle').html('open');
+        $('#req-result-text-state').val('hidden');
+    }
+    else {
+        $('#req-result-text').show();
+        $('#req-result-text-toggle').html('close');
+        $('#req-result-text-state').val('visible');
+    }
+}
+
+
+function toggle_jobchk_result_text() {
+    state = $('#jobchk-result-text-state').val();
+    if(state == 'visible') {
+        $('#jobchk-result-text').hide();
+        $('#jobchk-result-text-toggle').html('open');
+        $('#jobchk-result-text-state').val('hidden');
+        $('#jobchk-result-text-refresh').hide();
+    }
+    else {
+        $('#jobchk-result-text-refresh').show();
+        $('#jobchk-result-text').show();
+        $('#jobchk-result-text-toggle').html('close');
+        $('#jobchk-result-text-state').val('visible');
+    }
+}
+
+function make_lcop_popup_vnfi_base_info() {
+	vnfi_name = $('#vnfr-json-text-vnfi-name').val();
+	vnfr_id = $('#vnfr-json-text-vnfr-id').val();
+	vnfr_name = $('#vnfr-json-text-vnfr-name').val();
+	ns_id = $('#vnfr-json-text-ns-id').val();
+	ns_name = $('#vnfr-json-text-ns-name').val();
+
+	var tr = '' +
+		'<tr> ' +
+			'<td class="popup-info-base" colspan="10">' +
+				'<span class="spec-val" style="font-size:16px;">'+vnfi_name+'</span></br></br>' +
+				'<span class="spec-key">ns-name</span><span class="spec-val">'+ns_name+'</span>' +
+				'<span class="spec-key">ns-id</span><span class="spec-val">'+ns_id+'</span></br>' +
+				'<span class="spec-key">vnfr-name</span><span class="spec-val">'+vnfr_name+'</span>' +
+				'<span class="spec-key">vnfr-id</span><span class="spec-val">'+vnfr_id+'</span></br>' +
+			'</td>' +
+		'</tr>';
+
+	return tr;
+}
+
+function open_lcop_popup(lcop) {
+    vnfd_id = $('#vnfr-json-text-vnfd-id').val();
+
+	reqbody = {
+		"method":"GET",
+		"uri":"/manager/v2/vnf/packages/" + vnfd_id,
+		"system":"vnfm"
+	}
+
+    $.ajax({
+        type: 'POST',
+        url: '/relayRead/',
+        data: JSON.stringify(reqbody),
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        error: function(jqXHR, textStatus, errorThrown) {
+			if (errorThrown == 'NOT FOUND') {
+				msg = 'VNF package is not registered\n - vnfd-id: ' + vnfd_id;
+				alert(msg);
+			}
+			else {
+				alert('communication error');
+			}
+        },
+        success: function(pkg, textStatus, request) {
+			$('#lcop-name').val(lcop);
+			$('#lcop-modal-title').html('Instantiate VNF');
+
+			line = '<table>' + make_lcop_popup_vnfi_base_info() + 
+			'<tr>'+
+			'<td class="popup-info-base">'+
+			'<span class="item-name" style="color:orange;">Flavor*</span></br>'+
+			'<select class="styled-select" id="target-flavor-id">'+
+			'<option value="" disabled selected>Choose flavor</option>'+
+			'<option value="" disabled>-------------------------</option>';
+		pkg.vnfd.flavors.forEach(function(flv) {
+				line+='<option value="'+flv.flavor_id+'">'+ flv.flavor_id +'</option>';
+			});
+		line+=''+
+			'</select>'+
+			'</td>'+
+			'</tr>'+
+			'</table>';
+
+			$('#modal-lcop-info').html(line);
+			$('#lcop-modal').show();
+		}
+		});
+}
+
+function close_lcop_popup() {
+    $('#output-result').css('visibility','hidden');
+    $('#output-result').html('');
+	$('#lcop-modal-confirm').show();
+    $('#lcop-modal').hide();
+}
+
+function run_lcop() {
+	instantiate_vnf();
+}
+
+function instantiate_vnf() {
+	ns_id = $('#vnfr-json-text-ns-id').val();
+	vnfr_id = $('#vnfr-json-text-vnfr-id').val();
+	target_flavor_id = $('#target-flavor-id').val();
+	reqbody = { 'vnfr_id': vnfr_id, 'ns_id': ns_id, 'flavor_id': target_flavor_id };
+
+    $.ajax({
+        type: 'POST',
+        url: '/lcop/instantiateVnf',
+        data: JSON.stringify(reqbody),
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'text',
+        error: function() {
+            alert('communication error');
+        },
+        success: function(data, textStatus, request) {
+
+            var job_id = request.getResponseHeader('X-Job-ID');
+
+			$('#lcop-modal-confirm').hide();
+			$('#output-result').css('visibility','visible');
+
+            line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+                '<span style="display:inline-block; vertical-align:middle;">Request to instantiate VNF</span>' +
+                '<span id="req-result-text-toggle" class="vnfi-lcop-button" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_req_result_text();">close</span>' +
+                '</div>' +
+                '<div id="req-result-text" class="result">'+data+'</div>' +
+                '<input id="req-result-text-state" type="hidden" value="visible">';
+            $('#output-result').append(line);
+
+            if (job_id == '') return;
+
+			joburl = '/cms/jobs/' + job_id;
+
+            $.ajax({
+                type: 'GET',
+                url: joburl,
+                dataType: 'text',
+                error: function() {
+                    alert('communication to get job status error');
+                },
+                success: function(data, textStatus, request) {
+
+                    line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+                        '<span style="display:inline-block; vertical-align:middle;">Check job status</span>' +
+                        '<span id="jobchk-result-text-toggle" class="vnfi-lcop-button" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_jobchk_result_text();">close</span>' +
+                        '<span id="jobchk-result-text-refresh" class="vnfi-lcop-button" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="output_result_job_refresh(\''+joburl+'\');">refresh</span>' +
+                        '</div>' +
+                        '<div id="jobchk-result-text" class="result">'+data+'</div>' +
+                        '<input id="jobchk-result-text-state" type="hidden" value="visible">';
+                    $('#output-result').append(line);
+                }
+            });
+
+        }
+    });
+}
+
+function output_result_job_refresh(joburl) {
+	$.ajax({
+		type: 'GET',
+		url: joburl,
+		dataType: 'text',
+		error: function() {
+			alert('communication to get job status error');
+		},
+		success: function(data, textStatus, request) {
+			$('#jobchk-result-text').css('color','#eee');
+			setTimeout(function(){
+				$('#jobchk-result-text').html(data);
+				$('#jobchk-result-text').css('color','#000');
+				}, 100);
+		}
+	});
+}
+
+function save_vnfr() {
+	ns_id = $('#vnfr-json-text-ns-id').val();
+	vnfr_id = $('#vnfr-json-text-vnfr-id').val();
+	vnfr_name = $('#vnfr-json-text-vnfr-name').val();
+	vnfr_json_text = $('#vnfr-json-text').val();
+
+	jdoc = '{ "vnfr_id":"' + vnfr_id + '", "vnfr_name":"'+vnfr_name+'", "ns_instance_id":"'+ns_id+'", "content":'+vnfr_json_text+' }';
+
+	$.ajax({
+		type: 'PUT',
+		url: '/nss/' + ns_id + '/vnfrs/' + vnfr_id,
+		data: jdoc,
+		error: function() {
+			alert('communication error');
+		},
+		success: function(data, textStatus, request) {
+			alert('The document has been saved.');
+		}
+	});
+}
+
+function get_vnfrs(elem) {
+	vnfr_id = elem.parentNode.id;
+	ns_id = elem.parentNode.parentNode.parentNode.id;
+	ns_name = $('#'+ns_id).children('span').text();
+
+	$.ajax({
+		type: 'GET',
+		url: '/nss/' + ns_id + '/vnfrs/' + vnfr_id,
+		dataType: 'json',
+		error: function() {
+			alert('communication error');
+		},
+		success: function(data, textStatus, request) {
+			line ='<div class="vnfr-json-top">' +
+					'<img style="vertical-align:middle;" src="{{ url_for('static', filename='images/file-3-line-24.png') }}">' +
+					'<span class="vnfr-json-title">'+data.vnfr_name+'</span>' +
+					'<span class="vnfi-lcop-button" style="margin:0 3px 0 3px;" onClick="save_vnfr();">Save</span>' +
+					'<span class="vnfi-lcop-button" style="margin:0 3px 0 3px;" onClick="open_lcop_popup(\'instantiate\');">Instantiate</span></br>' +
+					'<span class="spec-key">vnfr-id</span><span class="spec-val">'+vnfr_id+'</span></br>' +
+					'<span class="spec-key">ns-name</span><span class="spec-val">'+ns_name+'</span>' +
+					'<span class="spec-key">ns-id</span><span class="spec-val">'+ns_id+'</span>' +
+					'<input type="hidden" id="vnfr-json-text-vnfr-id" value="'+vnfr_id+'">' +
+					'<input type="hidden" id="vnfr-json-text-ns-id" value="'+ns_id+'">' +
+					'<input type="hidden" id="vnfr-json-text-ns-name" value="'+ns_name+'">' +
+					'<input type="hidden" id="vnfr-json-text-vnfr-name" value="'+data.vnfr_name+'">' +
+					'<input type="hidden" id="vnfr-json-text-flavor-id" value="'+data.content.vnf.flavor_id+'">' +
+					'<input type="hidden" id="vnfr-json-text-vnfi-name" value="'+data.content.vnf.name+'">' +
+					'<input type="hidden" id="vnfr-json-text-vnfd-id" value="'+data.content.vnf.vnf_descriptor_id+'">' +
+				'</div>' + 
+				'<div style="text-align:left;">' +
+					'<textarea id="vnfr-json-text" class="vnfr-json-text" spellcheck="false">'+ JSON.stringify(data.content, null, 2) +'</textarea>' +
+				'</div>';
+			$('#section').empty();
+			$('#section').append(line);
+
+			$(elem).parent().parent().children().children('span').css('background','');
+			$(elem).parent().parent().children().children('span').css('color','');
+			$(elem).css('background','black');
+			$(elem).css('color','white');
+		}
+	});
+}
+
+function extend_vnfrs(elem) {
+	ns_id = elem.parentNode.id;
+	parentid = '#' + ns_id;
+
+	extend = $(parentid).children('.input-vnfr-name');
+	if(extend.length==0) {
+		$("#aside-vnfr-names").remove();
+		$(".input-vnfr-name").remove();
+
+		$.ajax({
+			type: 'GET',
+			url: '/nss/' + ns_id,
+			dataType: 'json',
+			error: function() {
+				alert('communication to add an NS error');
+			},
+			success: function(data, textStatus, request) {
+				line='<div id="aside-vnfr-names" style="padding-top:5px;">';
+				for( i in data ) {
+					line+='<div id="'+ data[i].vnfr_id +'" class="aside-vnfr-name">' +
+						'<img class="aside-vnfr-icon" src="{{ url_for('static', filename='images/file-3-line.png') }}">' +
+						'<span class="ns-name-button" onClick="get_vnfrs(this);">'+data[i].vnfr_name+'</span>' +
+						'<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/delete-bin-line.png') }}" onClick="del_a_vnfr(this);" title="Delete VNFR">' +
+						'</div>';	
+				}
+				line+='</div>' +
+					'<div class="input-vnfr-name">' +
+						'<input type="text" class="vnfr-name" style="width:70%;">' +
+						'<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/file-add-line.png') }}" onClick="add_an_vnfr(this);" title="Add VNFR">' +
+					'</div>';
+				$(parentid).append(line);
+			}
+		});
+
+	}
+	else {
+		/* do nothing */
+	}
+}
+
+function add_an_ns() {
+    ns_name_val = $('#ns-name').val();
+    ns_name_val = ns_name_val.trim();
+
+    if (ns_name_val.length==0) {
+        alert('Input NS name');
+        return;
+    }
+
+	$('#loading-modal').show();
+    $.ajax({
+        type: 'POST',
+        url: '/nss/',
+        data: {
+            ns_name: ns_name_val
+        },
+        dataType: 'json',
+        error: function() {
+            alert('communication to add an NS error');
+			$('#loading-modal').hide();
+        },
+        success: function(data, textStatus, request) {
+			$('#loading-modal').hide();
+            line='<div class="ns-list-item" id="'+data.ns_id+'">' +
+					'<img class="aside-vnfr-icon" src="{{ url_for('static', filename='images/folder-fill.png') }}">' +
+					'<span class="ns-name-button" style="padding:0 7px 0 7px;" onClick="extend_vnfrs(this);">'+data.ns_name+'</span>' +
+					'<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/delete-bin-line.png') }}" onClick="del_an_ns(this);" title="Delete NS">' +
+				'</div>'
+
+            $('#ns-name').val('');
+            $('#ns-list').append(line);
+        }
+    });
+}
+
+function del_an_ns(elem) {
+    ns_id = elem.parentNode.id;
+
+	$('#loading-modal').show();
+
+	$.ajax({
+		type: 'GET',
+		url: '/nss/' + ns_id,
+		dataType: 'json',
+		error: function() {
+			alert('communication to add an NS error');
+			return;
+		},
+		success: function(data, textStatus, request) {
+			if(data.length>0) {
+				alert('Delete the record belonging to this NS first.');
+				$('#loading-modal').hide();
+			}
+			else {
+
+				$.ajax({
+					type: 'DELETE',
+					url: '/nss/',
+					data: {
+						ns_id: ns_id
+					},
+					error: function() {
+						alert('communication to add an NS error');
+						$('#loading-modal').hide();
+					},
+					success: function(data, textStatus, request) {
+						$('#loading-modal').hide();
+						elem.parentNode.remove();
+					}
+				});
+
+			}
+        }
+    });
+
+}
+
+function add_an_vnfr(elem) {
+	ns_id = elem.parentNode.parentNode.id;
+	parentid = '#' + ns_id;
+	vnfr_name_val = $(elem).siblings('input').val();
+	$.ajax({
+			type: 'POST',
+			url: '/nss/' + ns_id + '/vnfrs/',
+			dataType: 'json',
+			data: { 
+				vnfr_name: vnfr_name_val
+				},
+			error: function() {
+				alert('communication error');
+			},
+			success: function(data, textStatus, request) {
+				line='<div id="'+ data.vnfr_id +'" class="aside-vnfr-name">' +
+						'<img class="aside-vnfr-icon" src="{{ url_for('static', filename='images/file-3-line.png') }}">' +
+						'<span class="ns-name-button" onClick="get_vnfrs(this);">'+data.vnfr_name+'</span>' +
+						'<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/delete-bin-line.png') }}" onClick="del_a_vnfr(this);" title="Delete VNFR">' +
+					'</div>';
+				$(elem).siblings('input').val('');
+				$(parentid).children('#aside-vnfr-names').append(line);
+			}
+		});
+}
+
+function del_a_vnfr(elem) {
+	vnfr_id = elem.parentNode.id;
+	ns_id = elem.parentNode.parentNode.parentNode.id;
+	$.ajax({
+			type: 'DELETE',
+			url: '/nss/' + ns_id + '/vnfrs/' + vnfr_id,
+			dataType: 'json',
+			error: function() {
+				alert('communication error');
+			},
+			success: function(data, textStatus, request) {
+				line='<div class="aside-vnfr-name"> </div>';	
+				for( i in data ) {
+					line+='<div id="'+ data[i].vnfr_id +'" class="aside-vnfr-name">' +
+						'<img class="aside-vnfr-icon" src="{{ url_for('static', filename='images/file-3-line.png') }}">' +
+						'<span class="ns-name-button" onClick="get_vnfrs(this);">'+data[i].vnfr_name+'</span>' +
+						'<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/delete-bin-line.png') }}" onClick="del_a_vnfr(this);" title="Add VNFR">' +
+						'</div>';
+						}
+				$(parentid).children('#aside-vnfr-names').empty();
+				$(parentid).children('#aside-vnfr-names').append(line);
+			}
+		});
+}
+</script>
+
+</head>
+
+<body>
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+<div class="topbar">
+	<table class="screen-frame">
+		<tr>
+			<td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+			<td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/records">Records</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+		</tr>
+	</table>
+</div>
+
+<div class="screen-frame" style="padding:50px 0 0 0;"></div>
+<div class="screen-frame">
+	<table id="titlebar">
+		<tr>
+			<td class="title">VNF records</td>
+		</tr>
+		<tr>
+			<td class="site">{{ site_name }}</td>
+		</tr>
+	</table>
+</div>
+
+<div class="screen-frame">
+	<table>
+		<tr>
+			<td style="vertical-align:top; text-align:left; width:300px;">
+				<table>
+					<tr>
+						<td style="border-bottom:1px solid;">
+							<span style="font-size:20px; font-family:Oswald;">Network Services</span>
+						</td>
+					</tr>
+					<tr>
+						<td id="ns-list">
+							{% for ns in nss %}
+							<div id="{{ ns.ns_id }}" class="ns-list-item">
+								<img class="aside-vnfr-icon" src="{{ url_for('static', filename='images/folder-fill.png') }}">
+								<span class="ns-name-button" onClick="extend_vnfrs(this);" style="font-family:Open Sans; font-size:16px;">{{ ns.ns_name }}</span> 
+								<img class="aside-vnfr-add-icon" src="{{ url_for('static', filename='images/delete-bin-line.png') }}" onClick="del_an_ns(this);" title="Delete NS">
+							</div>
+							{% endfor %}
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div style="padding-top: 50px; text-align:left;"> 
+								<input type="text" id="ns-name" style="width:70%;">
+								<span class="vnfi-lcop-button" style="" onClick="add_an_ns();">Add NS</span> 
+							</div>
+						</td>
+					</tr>
+				</table>
+			</td>
+			<td style="vertical-align:top;">
+				<div id="section" style="padding:10px;">
+				</div>
+			</td>
+		</tr>
+	</table>
+</div>
+
+<!-- The lifecycle operations modal -->
+<div id="lcop-modal" class="modal">
+	<input type="hidden" id="lcop-name" value="">
+    <div class="w700 modal-content">
+        <div style="border-bottom: 1px solid #aaa; padding-bottom:10px; margin-bottom:20px;">
+            <img style="vertical-align:middle;" src="{{ url_for('static', filename='images/compass-discover-line-32.png') }}">
+            <span id="lcop-modal-title" class="modal-title" style="vertical-align:middle;"></span>
+        </div>
+        <div id="modal-lcop-info"> </div>
+        <table style="margin-top:20px;">
+            <tr>
+                <td id="lcop-modal-confirm" width="50%" class="modal-button">
+                    <div style="width:100%;" class="confirm" onClick="run_lcop();">
+                        <span> RUN </span>
+                    </div>
+                </td>
+                <td class="modal-button">
+                    <div style="width:100%;" class="cancel" onClick="close_lcop_popup();">
+                        <span> CLOSE </span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <div id="output-result"> </div>
+    </div>
+</div>
+<!-- // The lifecycle operations modal -->
+
+<!-- The loading modal -->
+<div id="loading-modal" class="modal">
+	<div class="modal-loading">
+		<img style="display:inline-block;" src="{{ url_for('static', filename='images/loading.webp') }}">
+    </div>
+</div>
+<!-- //The loading modal -->
+
+</body>
+</html>

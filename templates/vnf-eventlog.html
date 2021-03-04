@@ -1,0 +1,331 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>VNF event logs</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<script src="https://code.jquery.com/jquery-latest.js"></script>
+</head>
+
+<script>
+function sortPhase(a,b) {
+	return a.number > b.number ? 1 : a.number < b.number ? -1 : 0;
+}
+
+function reload_vnfi_prog(phase) {
+	sect_width = 100 / phase.total;
+	bar_width = phase.current == phase.total ? 100 : sect_width * phase.current;
+
+	$('#vnfi-prog').empty();
+
+	line = '<ul class="steps-container">';
+
+	phase.list.sort(sortPhase);
+	phase.list.forEach(function(ph) {
+			if (ph.number <= phase.current) {
+			line += ''+
+			'<li style="width:'+ sect_width +'%;" class="activated">'+
+			'<div class="step">'+
+			'<div class="step-image"><span></span></div>'+
+			'<div class="step-current">'+ ph.name +'</div>'+
+			'<div class="step-description">'+ ph.time +'</div>'+
+			'</div>'+
+			'</li>';
+			} else {
+			line += ''+
+			'<li style="width:'+ sect_width +'%;">'+
+			'<div class="step">'+
+			'<div class="step-image"><span></span></div>'+
+			'<div class="step-current incomplete">'+ ph.name +'</div>'+
+			'</div>'+
+			'</li>';
+			}
+			});	
+
+	line += '</ul>'+
+		'<div class="step-bar" style="width:'+ bar_width +'%;"></div>';
+
+	$('#vnfi-prog').html(line);
+}
+
+function reload_vnfci_prog(log) {
+	$('#vnfci-prog').empty();
+
+	line = '';
+
+	log.event.vnfcis.sort(function(a,b) { return a.name > b.name ? 1 : a.name < b.name ? -1 : 0; });
+	log.event.vnfcis.forEach(function(ci) {
+			line += ''+
+			'<tr>'+
+			'<td style="width:15%; position:relative;">'+
+			'<div class="vnfci-title">'+
+			'<img style="display:inline-block; vertical-align:middle; margin-right:5px;" src="{{ url_for('static', filename='images/terminal-box-fill.png') }}">'+
+			'<span class="vnfci-name">'+ ci.name +'</span>'+
+			'</div>'+
+			'</td>'+
+			'<td class="vnfci-prog">'+
+			'<ul>';
+
+			ci.phase.list.sort(sortPhase);
+			ci.phase.list.forEach(function(ph) {
+				line += '<li>'+
+				'<span class="milestone"></span>'+
+				'<span class="time">'+ ph.time +'</span>'+
+				'<div>';
+				if ( ph.time == '' ) {
+				line += '<span class="name incomplete">'+ ph.name +'</span>'
+				} else {
+				line += '<span class="name">'+ ph.name +'</span>'
+				}
+
+				if ( ph.number == ci.phase.current ) {
+				line += '<span class="desc" style="margin-left:10px;">'+ ci.phase.description +'</span>'
+				}
+				line += '</div>'+
+				'</li>';
+				});
+			line += '</ul>'+
+				'</td>'+
+				'</tr>';
+	});
+
+	$('#vnfci-prog').html(line);
+}
+
+function reload(job_id) {
+
+    body = { "method":"GET", "uri":"/manager/v2/vnf/lc-details/"+job_id, "system":"vnfm" };
+
+    $.ajax({
+        type: 'POST',
+        url: '/relayRead/',
+        contentType: 'application/json',
+        data: JSON.stringify(body),
+        dataType: 'json',
+        error: function() {
+            alert('communication error');
+        },
+        success: function(log, textStatus, request) {
+			reload_vnfi_prog(log.event.phase);
+
+			if (log.event.vnfcis.length>0) {
+				reload_vnfci_prog(log);
+			}
+
+			if ( log.event.lifecycle.status != 'Processing' ) {
+				clearInterval(timerid);
+
+				$('#lc-status').removeClass('bdg-orange');
+				$('#lc-status').removeClass('blinking');
+
+				if (log.event.lifecycle.status != 'Completed' ) {
+					line = '<span class="spec-val" style="color:; background-color:orange; margin-bottom:10px;">'+ log.event.lifecycle.description +'</span></br>';
+					$('#lc-fail-desc').html(line);
+
+					$('#lc-status').addClass('bdg-red');
+				}
+				else {
+					$('#lc-status').addClass('bdg-green');
+				}
+
+				$('#lc-status').html(log.event.lifecycle.status);
+			}
+		}
+	});
+}
+
+let timerid;
+window.onload = function() {
+	if("{{log.event.lifecycle.status}}" == "Processing") {
+		timerid = setInterval(reload, 5000, "{{ log.event.job_id }}");
+	}
+}
+</script>
+
+<body>
+
+<!-- Top menu bar -->
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+<div class="topbar">
+    <table class="screen-frame">
+        <tr>
+            <td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+            <td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/records">Records</a></td>
+            <td class="barmenu-delimeter">|</td>
+            <td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+        </tr>
+    </table>
+</div>
+<!-- // Top menu bar -->
+
+<!-- General information -->
+<style>
+.margin-top-40 { margin-top:40px; }
+.gen-info div.pg-title { line-height:70px; text-align:left; }
+.gen-info div.pg-title * { vertical-align:middle; }
+.gen-info div.pg-title span { font-size:32px; font-family:Oswald; }
+.gen-info div.pg-title span.badge { border-radius:3px; padding:2px 4px 2px 4px; color:white; background-color:black; font-size:12px; font-family:Roboto Mono;}
+.gen-info div.pg-title span.bdg-red { color:white; background-color:red; }
+.gen-info div.pg-title span.bdg-green { color:white; background-color:green; }
+.gen-info div.pg-title span.bdg-orange { color:white; background-color:orange; }
+.gen-info div span { font-size:12px; text-align:left; padding-left:5px; }
+.gen-info div span.spec-key { font-family:Open Sans; color:tomato; }
+.gen-info div span.spec-val { font-family:Roboto Mono; }
+.blinking{
+	-webkit-animation:blink 1.5s ease-in-out infinite alternate;
+	-moz-animation:blink 1.5s ease-in-out infinite alternate;
+	animation:blink 1.5s ease-in-out infinite alternate;
+}
+@-webkit-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@-moz-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+</style>
+
+<div class="screen-frame margin-top-40 gen-info">
+	<div class="pg-title">
+		<img src="{{ url_for('static', filename='images/stack-line-32.png') }}">
+		<span>{{ log.event.lifecycle.event }}</span>
+		{% if log.event.lifecycle.status == 'Completed' %}
+		<span id="lc-status" class="badge bdg-green">{{ log.event.lifecycle.status }}</span>
+		{% elif log.event.lifecycle.status == 'Processing' %}
+		<span id="lc-status" class="badge bdg-orange blinking">{{ log.event.lifecycle.status }}</span>
+		{% else %}
+		<span id="lc-status" class="badge bdg-red">{{ log.event.lifecycle.status }}</span>
+		{% endif %}
+	</div>
+	<div id="lc-fail-desc">
+		{% if log.event.lifecycle.status != 'Completed' and log.event.lifecycle.status != 'Processing'%}
+		<span class="spec-val" style="color:; background-color:orange; margin-bottom:10px;">{{ log.event.lifecycle.description }}</span></br>
+		{% endif %}
+	</div>
+	<div>
+		<span class="spec-key">job-id</span><span class="spec-val">{{ log.event.job_id }}</span></br>
+	</div>
+</div>
+<!-- // General information -->
+
+
+<!-- VNF Progress step -->
+<style>
+.steps { min-height:90px; padding:30px 0 0 0; font-family:'Open Sans',sans-serif; position:relative; }
+.steps .steps-container { background:#DDD; height:10px; width:1160px; border-radius:10px; -moz-border-radius:10px; -webkit-border-radius:10px; -ms-border-radius:10px; margin:0; list-style:none; }
+.steps .steps-container li { text-align:center; list-style:none; float:left; }
+.steps .steps-container li .step { padding:0; }
+.steps .steps-container li .step .step-image { margin:-14px 0 0 0; }
+.steps .steps-container li .step .step-image span { background-color:#DDD; display:block; width:37px; height:37px; margin:0 auto; border-radius:37px; -moz-border-radius:37px; -webkit-border-radius:37px; -ms-border-radius:37px; }
+.steps .steps-container li .step .step-current { font-size:12px;color:black; margin:8px 0 0 0; border:0px solid blue;}
+.steps .steps-container li .step .incomplete { color:silver; }
+.steps .steps-container li .step .step-description{font-size:12px; color:green; margin-top:10px; width:80px; display:inline-block;}
+.steps .steps-container li.activated .step .step-image span{background-color:#5DC177}
+.steps .steps-container li.activated .step .step-image span:after{background-color:#FFF;display:block;content:'';position:absolute;z-index:1;width:27px;height:27px;margin:5px;border-radius:27px;-moz-border-radius:27px;-webkit-border-radius:27px;-ms-border-radius:27px;box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.15) ;-moz-box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.15) ;-webkit-box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.15) }
+.steps .step-bar { background-color:#5DC177;height:10px;position:absolute;top:30px;border-radius:10px 0 0 10px;-moz-border-radius:10px 0 0 10px;-webkit-border-radius:10px 0 0 10px;-ms-border-radius:10px 0 0 10px}
+.steps .step-bar.last { border-radius:10px;-moz-border-radius:10px;-webkit-border-radius:10px;-ms-border-radius:10px; }
+.vnfi-prog div span.vnfi-name { font-size:18px; font-family:Oswald; vertical-align:middle; }
+.vnfi-prog div span.spec-key { font-family:Open Sans; color:tomato; margin:0 5px;}
+.vnfi-prog div span.spec-val { font-family:Roboto Mono; }
+</style>
+
+<div class="screen-frame margin-top-40 vnfi-prog">
+	<div>
+		<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/terminal-window-line.png') }}">
+		<span class="vnfi-name">{{ log.event.vnfi_name }}</span></br>
+		<span class="spec-key">vnfi-id</span><span class="spec-val">{{ log.event.vnfi_id }}</span></br>
+		<span class="spec-key">flavor</span><span class="spec-val">{{ log.event.flavor }}</span>
+		<span class="spec-key">time</span><span class="spec-val">{{ log.event.time }}</span>
+	</div>
+	{% set sect_width = 100/((log.event.phase.total|int)) %}
+	{% set bar_width = log.event.phase.current == log.event.phase.total and 100 or sect_width * log.event.phase.current|int %}
+	<div class="steps" id="vnfi-prog">
+		<ul class="steps-container">
+			{% for ph in log.event.phase.list|sort(attribute='number') %}
+			{% if ph.number <= log.event.phase.current|int %}
+			<li style="width:{{ sect_width }}%;" class="activated">
+			<div class="step">
+				<div class="step-image"><span></span></div>
+				<div class="step-current">{{ ph.name }}</div>
+				<div class="step-description">{{ ph.time }}</div>
+			</div>
+			</li>
+			{% else %}
+			<li style="width:{{ sect_width }}%;">
+			<div class="step">
+				<div class="step-image"><span></span></div>
+				<div class="step-current incomplete">{{ ph.name }}</div>
+			</div>
+			</li>
+			{% endif %}
+			{% endfor %}
+		</ul>
+		<div class="step-bar" style="width: {{ bar_width }}%;"></div>
+	</div>
+</div>
+<!-- // VNF Progress step -->
+
+<!-- VNFC Progress step -->
+<style>
+td.vnfci-prog { padding:0 0 0 200px; }
+.vnfci-prog ul { list-style:none; position:relative; padding:0; text-align:left; }
+.vnfci-prog ul:before { content: ''; position: absolute; width: 2px; height: 100%; top: 0; left: 0; background: grey; }
+.vnfci-prog ul li span.milestone { position:absolute; left:-6px; width: 12px; height: 12px; border:1px solid grey; background-color:white; border-radius:7px; }
+.vnfci-prog ul li span.time { color:green; position:absolute; left:-150px; background-color:white; border:0px solid grey; }
+.vnfci-prog ul li span.desc { color:red; }
+.vnfci-prog ul li span.incomplete { color:silver; }
+.vnfci-prog ul li { padding:5px 20px; }
+span.vnfci-name { font-size:18px; font-family:Oswald; vertical-align:middle; }
+div.vnfci-title { position:absolute; top:10%; }
+table tr td { border:0px dashed blue; text-align:left; }
+</style>
+<div class="screen-frame margin-top-40">
+	<table id="vnfci-prog">
+
+		{% for ci in log.event.vnfcis|sort(attribute='name') %}
+		<tr>
+			<td style="width:15%; position:relative;">
+				<div class="vnfci-title">
+					<img style="display:inline-block; vertical-align:middle;" src="{{ url_for('static', filename='images/terminal-box-fill.png') }}">
+					<span class="vnfci-name">{{ ci.name }}</span>
+				</div>
+			</td>
+			<td class="vnfci-prog">
+				<ul>
+					{% for ph in ci.phase.list|sort(attribute='number') %}
+					<li>
+					<span class="milestone"></span>
+					<span class="time">{{ ph.time }}</span>
+					<div>
+						{% if ph.time == '' %}
+						<span class="name incomplete">{{ ph.name }}</span>
+						{% else %}
+						<span class="name">{{ ph.name }}</span>
+						{% endif %}
+						{% if ph.number == ci.phase.current %}
+						<span class="desc">{{ ci.phase.description }}</span>
+						{% endif %}
+					</div>
+					</li>
+					{% endfor %}
+				</ul>
+			</td>
+		</tr>
+		{% endfor %}
+
+	</table>
+</div>
+<!-- // VNFC Progress step -->
+
+
+<!-- Placeholder -->
+<div class="screen-frame" style="padding:100px 0 0 0;"></div>
+<!-- // Placeholder -->
+
+</body>
+</html>

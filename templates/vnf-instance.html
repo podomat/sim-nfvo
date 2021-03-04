@@ -1,0 +1,691 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ vnfi.vnf.vnfi_name }} - VNF instance</title>
+
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+<script src="https://code.jquery.com/jquery-latest.js"></script>
+
+<style>
+.title-item-name { font-size:12px; color:grey; }
+.vnfi-status-normal { color:white; background-color:green; font-size:16px; padding: 2px 10px 2px 10px; }
+.vnfi-status-abnormal { color:white; background-color:red; font-size:16px; padding: 2px 10px 2px 10px; border-radius:3px; font-family : 'Open Sans'; font-size: 13px; font-weight: bold;}
+.updatable { color:white; background-color:red; font-size:16px; padding: 2px 10px 2px 10px; cursor:pointer; border-radius:3px; font-family : 'Open Sans'; font-size: 13px; font-weight: bold;}
+
+.output-result { visibility: hidden; }
+.output-result-job-refresh { opacity:0.2; cursor:pointer; padding-left:10px; vertical-align:middle; }
+.output-result-job-refresh:hover { opacity:1; }
+
+.title { font-family:'Oswald'; font-size:32px; text-align:left; padding-left:10px; vertical-align:middle; }
+.spec-key { font-family:Open Sans; font-size:12px; text-align:left; padding-left:5px; color:tomato;}
+.spec-val { font-family:Roboto Mono; padding-left:5px; font-size: 12px;}
+.spec-val-green { font-family:Roboto Mono; padding-left:5px; font-size: 12px; color:green; }
+
+.item-name { font-family : 'Open Sans'; font-size: 12px; color: blue; }
+.modal-button .confirm:hover { background-color:red; color:white;}
+.modal-button .cancel:hover { background-color:black; color:white;}
+
+.settings-vnfcis-textarea { width:660px; height:550px; resize:none; font-family:'Roboto Mono'; padding:20px; border:0; margin-left:0px; background-color:#f3f4f6; border-radius:0px; }
+.popup-info-base { text-align:left; border:0px solid black; background-color:#333; color:#fff; }
+
+.vnfi-badge-green { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid green; color:white; background-color:green; }
+.vnfi-badge-grey { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid grey; color:white; background-color:grey; }
+.vnfi-badge-blue { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid blue; color:white; background-color:blue; }
+.vnfi-badge-orange { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid orange; color:white; background-color:orange; }
+.vnfi-badge-red { border-radius:3px; padding:2px 4px 2px 4px; border:0px solid red; color:white; background-color:red; }
+
+.op-button { border-radius:3px; padding:2px 4px 2px 4px; border:1px solid blue; color:blue; background-color:white; cursor:pointer; font-family:Roboto Mono; font-size:12px; }
+.op-button-orange { border-radius:3px; padding:2px 4px 2px 4px; border:1px solid orange; color:orange; background-color:white; cursor:pointer; font-family:Roboto Mono; font-size:12px; }
+.op-button:hover { color:white; background-color:blue; }
+.op-button-orange:hover { color:white; background-color:orange; }
+
+.blinking{ -webkit-animation:blink 1.5s ease-in-out infinite alternate; -moz-animation:blink 1.5s ease-in-out infinite alternate; animation:blink 1.5s ease-in-out infinite alternate; }
+@-webkit-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@-moz-keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+@keyframes blink{ 0% {opacity:0.2;} 100% {opacity:1;} }
+</style>
+
+<script>
+
+
+function open_vnc_console(vm_id, vnfci_name, vim_name) {
+	$.ajax({
+		type: "GET",
+		url: "/oscs/"+ vim_name +"/console/"+ vm_id,
+		dataType: 'json',
+		error: function(jqXHR, textStatus, errorThrown) {
+			alert('communication error: '+errorThrown);
+		},
+		success: function(data, textStatus, request) {
+			url = data.console.url;
+			//window.open(url, 'my_window', 'width=940, height=712, location=no, toolbar=no, menubar=no, scrollbars=no, resizable=no, status=no');
+			window.open(url, '_blank');
+		}
+	});
+}
+
+
+function toggle_req_result_text() {
+	state = $('#req-result-text-state').val();
+	if(state == 'visible') {
+		$('#req-result-text').hide();
+		$('#req-result-text-toggle').html('open');
+		$('#req-result-text-state').val('hidden');
+	}
+	else {
+		$('#req-result-text').show();
+		$('#req-result-text-toggle').html('close');
+		$('#req-result-text-state').val('visible');
+	}
+}
+
+
+function toggle_jobchk_result_text() {
+	state = $('#jobchk-result-text-state').val();
+	if(state == 'visible') {
+		$('#jobchk-result-text').hide();
+		$('#jobchk-result-text-toggle').html('open');
+		$('#jobchk-result-text-state').val('hidden');
+		$('#jobchk-result-text-refresh').hide();
+	}
+	else {
+		$('#jobchk-result-text-refresh').show();
+		$('#jobchk-result-text').show();
+		$('#jobchk-result-text-toggle').html('close');
+		$('#jobchk-result-text-state').val('visible');
+	}
+}
+
+
+function lcop_ajax(method, uri, system, body) {
+	$.ajax({
+		type: method,
+		url: uri,
+		dataType: 'text',
+        data: body,
+		error: function(jqXHR, textStatus, errorThrown) {
+			if (uri.indexOf("scaleVnf")>0) {
+				if(errorThrown == 'FORBIDDEN') {
+					alert('Settings for VDUs is required!!');
+				}
+			}
+			else {
+				alert('communication error: '+jqXHR);
+			}
+		},
+		success: function(data, textStatus, request) {
+			var job_id = request.getResponseHeader('X-Job-ID');
+
+			$('#lcop-modal-confirm').hide();
+			$('#output-result').css('visibility','visible');
+
+			line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+				'<span style="display:inline-block; vertical-align:middle;">Request to '+lcop+'</span>' +
+				'<span id="req-result-text-toggle" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_req_result_text();">close</span>' +
+				'</div>' +
+				'<div id="req-result-text" class="result">'+data+'</div>' +
+				'<input id="req-result-text-state" type="hidden" value="visible">';
+			$('#output-result').append(line);
+
+
+			if (job_id == '') return;
+
+			joburl = '/' + system + '/jobs/' + job_id;
+
+			$.ajax({
+				type: 'GET',
+				url: joburl,
+				dataType: 'text',
+				error: function() {
+					alert('communication to get job status error');
+				},
+				success: function(data, textStatus, request) {
+
+					line = '<div class="log-title" style="padding:20px 0 5px 0;">' +
+						'<span style="display:inline-block; vertical-align:middle;">Check job status</span>' +
+						'<span id="jobchk-result-text-toggle" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="toggle_jobchk_result_text();">close</span>' +
+						'<span id="jobchk-result-text-refresh" class="op-button-orange" style="margin-left:10px; display:inline-block; vertical-align:middle;" onClick="output_result_job_refresh(\''+joburl+'\');">refresh</span>' +
+						'</div>' +
+						'<div id="jobchk-result-text" class="result">'+data+'</div>' +
+						'<input id="jobchk-result-text-state" type="hidden" value="visible">';
+					$('#output-result').append(line);
+				}
+			});
+
+		}
+	});
+}
+
+
+function run_lcop() {
+	lcop = $('#lcop-name').val();
+	vnfi_id = $('#vnfi-id').val();
+	if (lcop == 'terminate') {
+		lcop_ajax('POST', '/lcop/terminateVnf/'+vnfi_id, 'cms', '');
+	}
+	else if (lcop == 'clean') {
+		lcop_ajax('POST', '/lcop/cleanVnf/'+vnfi_id, 'cms', '');
+	}
+	else if (lcop == 'move-volume') {
+		var param = {
+			vnfi_id: $("#vnfi-id").val(),
+			source_vnfci_name: $("#source-vnfci-name").val(),
+			target_vnfci_name: $("#target-vnfci-name").val()
+		};
+		lcop_ajax('POST', '/lcop/moveVolume', 'vnfm', JSON.stringify(param));
+	}
+	else if (lcop == 'scale') {
+		param = { 
+			vnfd_id: "{{ vnfi.vnf.vnfd_id }}",
+			vnfi_name: $('#vnfi-name').val(),
+			flavor_id: $('#target-flavor-id').val(),
+			cur_flavor_id: "{{ vnfi.vnf.flavor_id }}"
+		};
+		lcop_ajax('POST', '/lcop/scaleVnf/'+vnfi_id, 'cms', JSON.stringify(param));
+	}
+}
+
+
+var tr_lcop_popup_vnfi_base_info_tr = '' +
+	'<tr> ' +
+		'<td class="popup-info-base" colspan="10">' +
+			'<span class="spec-val" style="font-size:16px;">{{ vnfi.vnf.vnfi_name }}</span></br></br>' +
+			'<span class="spec-key">id</span><span class="spec-val">{{ vnfi.vnf.vnfi_id }}</span>' +
+			'<span class="spec-key">flavor</span><span class="spec-val">{{ vnfi.vnf.flavor_id }}</span></br>' +
+			'<span class="spec-key">ns-name</span><span class="spec-val">{{ vnfi.vnf.nsi_name }}</span>' +
+			'<span class="spec-key">ns-id</span><span class="spec-val">{{ vnfi.vnf.nsi_id }}</span></br>' +
+			'<span class="spec-key">provider</span><span class="spec-val">{{ vnfi.vnf.provider }}</span>' +
+			'<span class="spec-key">create</span><span class="spec-val">{{ vnfi.vnf.create_time }}</span>' +
+		'</td>' +
+	'</tr>';
+
+
+function make_lcop_popup_scale() {
+	vnfd_id = "{{ vnfi.vnf.vnfd_id }}";
+	cur_flv = "{{ vnfi.vnf.flavor_id }}";
+	body = { "method":"GET", "uri":"/manager/v2/vnf/packages/"+vnfd_id, "system":"vnfm" };
+	$.ajax({
+		type: 'POST',
+		url: '/relayRead/',
+		contentType: 'application/json',
+		data: JSON.stringify(body),
+		dataType: 'json',
+		error: function() {
+			alert('communication error');
+		},
+		success: function(pkg, textStatus, request) {
+			$('#pkg-info').val(JSON.stringify(pkg));
+			line = ''+
+				'<table>'+
+				tr_lcop_popup_vnfi_base_info_tr +
+				'<tr>'+
+				'<td class="popup-info-base">'+
+				'<span class="item-name" style="color:orange;">Flavor*</span></br>'+
+				'<select class="styled-select" id="target-flavor-id">'+
+				'<option value="" disabled selected>Choose flavor</option>'+
+				'<option value="" disabled>-------------------------</option>';
+			pkg.vnfd.flavors.forEach(function(flv) {
+				if(flv.flavor_id != cur_flv) {
+					line+='<option value="'+flv.flavor_id+'">'+ flv.flavor_id +'</option>';
+				}
+				});
+			line+=''+
+				'</select>'+
+				'</td>'+
+				'</tr>'+
+				'</table>';
+
+			$('#lcop-modal-title').html('Scale VNF');
+			$('#modal-lcop-info').html(line);
+		}
+	});
+}
+
+
+function make_settings_popup_vdus_op_save() {
+	content = $('#settings-vnfcis-textarea').val();
+	vnfi_id = $('#vnfi-id').val();
+
+	jdoc = { 
+		"vnfi_id": vnfi_id,
+		"settings": JSON.parse(content)
+	};
+
+	$.ajax({
+		type: 'PUT',
+		url: '/vnf/instances/' + vnfi_id + '/settings/vnfcis/',
+		data: JSON.stringify(jdoc),
+		error: function() {
+			alert('communication error');
+		},
+		success: function(data, textStatus, request) {
+			alert('The document has been saved.');
+		}
+	});
+}
+
+
+function make_settings_popup_vdus_op_template() {
+	template = {
+		"vnfcs": [
+		{
+			"vdu_id": "IF",
+				"sequence": "1",
+				"host_id": "nova:helion-cp1-comp0001-mgmt",
+				"static_ips": [
+				{
+					"ip": "10.10.10.11",
+					"ni_name": "IF_EXT_SPI"
+				},
+				{
+					"ip": "20.20.20.21",
+					"ni_name": "IF_EXT_OAM"
+				}
+			]
+		},
+		{
+			"vdu_id": "IF",
+			"sequence": "2",
+			"host_id": "nova:helion-cp1-comp0002-mgmt",
+			"static_ips": [
+			{
+				"ip": "10.10.10.12",
+				"ni_name": "IF_EXT_SPI"
+			},
+			{
+				"ip": "20.20.20.22",
+				"ni_name": "IF_EXT_OAM"
+			}
+			]
+		}
+		]
+	};
+
+	$('#settings-vnfcis-textarea').html(JSON.stringify(template, null, 2));
+}
+
+
+function make_settings_popup_vdus() {
+	vnfi_id = $('#vnfi-id').val();
+	$.ajax({
+		type: 'GET',
+		url: '/vnf/instances/' + vnfi_id + '/settings/vnfcis',
+		dataType: 'json',
+		error: function() {
+			alert('communication error');
+		},
+		success: function(data, textStatus, request) {
+			if(textStatus == 'nocontent') {
+				content = '';
+			}
+			else {
+				content = JSON.stringify(data.settings,null,2);
+			}
+			$('#settings-modal-title').html('Virtual Deployment Units');
+			line = '' 
+				+ '<div style="margin:0 0 10px 0;">'
+				+ '<span class="spec-key">operations</span>'
+				+ '<span class="op-button" style="margin:5px 3px 5px 3px;" onClick="make_settings_popup_vdus_op_save();">Save</span>'
+				+ '<span class="op-button" style="margin:5px 3px 5px 3px;" onClick="make_settings_popup_vdus_op_template();">Template</span>'
+				+ '</div>'
+				+ '<textarea id="settings-vnfcis-textarea" class="settings-vnfcis-textarea" spellcheck="false">'+ content +'</textarea>';
+			$('#modal-settings-info').html(line);
+			$('#settings-modal').show();
+		}
+	});
+}
+
+
+function open_settings_popup(obj) {
+	if (obj == 'VDUs') {
+		make_settings_popup_vdus();
+	}
+}
+
+
+function make_lcop_popup_move_volume(lcop) {
+	vnfi_name = $('#vnfi-name').val();
+	$('#lcop-modal-title').html('Move volume');
+	vnfci_list = {{ vnfcis|tojson }};
+	line = ''+
+		'<table>'+
+			tr_lcop_popup_vnfi_base_info_tr +
+			'<tr>'+
+				'<td class="popup-info-base">'+
+					'<span class="item-name" style="color:orange;">Source*</span></br>'+
+					'<select class="styled-select" id="source-vnfci-name">'+
+					'<option value="" disabled selected>Choose VM</option>'+
+					'<option value="" disabled>-------------------------</option>';
+	vnfci_list.components.forEach(function(vnfci) {
+			line+='<option value="'+vnfci.vnfci_name+'">'+ vnfci.vnfci_name +'</option>';
+			});
+	line+=''+
+					'</select>'+
+				'</td>'+
+				'<td class="popup-info-base">'+
+					'<span class="item-name" style="color:orange;">Target*</span></br>'+
+					'<select class="styled-select" id="target-vnfci-name">'+
+					'<option value="" disabled selected>Choose VM</option>'+
+					'<option value="" disabled>-------------------------</option>';
+	vnfci_list.components.forEach(function(vnfci) {
+			line+='<option value="'+vnfci.vnfci_name+'">'+ vnfci.vnfci_name +'</option>';
+			});
+	line+=''+
+				'</select>'+
+				'</td>'+
+			'</tr>'+
+		'</table>';
+	$('#modal-lcop-info').html(line);
+}
+
+
+function make_lcop_popup_terminate_clean(lcop) {
+	if (lcop == 'terminate') {
+		$('#lcop-modal-title').html('Terminate VNF');
+	}
+	else if (lcop == 'clean') {
+		$('#lcop-modal-title').html('Clean VNF');
+	}
+
+	line = '<table>' + tr_lcop_popup_vnfi_base_info_tr + '</table>';
+	$('#modal-lcop-info').html(line);
+}
+
+
+function open_lcop_popup(lcop) {
+	$('#lcop-name').val(lcop);
+
+	if (lcop == 'terminate' || lcop == 'clean') {
+		make_lcop_popup_terminate_clean(lcop);
+	}
+	if (lcop == 'move-volume') {
+		make_lcop_popup_move_volume(lcop);
+	}
+	if (lcop == 'scale') {
+		make_lcop_popup_scale();
+	}
+
+    $('#lcop-modal').show();
+}
+
+
+function close_settings_popup() {
+    $('#settings-modal').hide();
+}
+
+
+function close_lcop_popup() {
+    $('#output-result').css('visibility','hidden');
+    $('#output-result').html('');
+	$('#lcop-modal-confirm').show();
+    $('#lcop-modal').hide();
+}
+
+
+function output_result_job_refresh(joburl) {
+    $.ajax({
+        type: 'GET',
+        url: joburl,
+        dataType: 'text',
+        error: function() {
+            alert('communication to get job status error');
+        },
+        success: function(data, textStatus, request) {
+            $('#jobchk-result-text').css('color','#eee');
+            setTimeout(function(){
+                $('#jobchk-result-text').html(data);
+                $('#jobchk-result-text').css('color','#000');
+                }, 100);
+        }
+    });
+}
+
+</script>
+
+</head>
+
+<body>
+
+<!-- Top menu bar -->
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+<div class="topbar">
+	<table class="screen-frame">
+		<tr>
+			<td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+			<td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/records">Records</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+		</tr>
+	</table>
+</div>
+<!-- // Top menu bar -->
+
+<!-- General information -->
+<div class="screen-frame">
+	<table style="margin:40px 0;">
+		<tr>
+			<td style="text-align:left; vertical-align:top;" colspan="2">
+				<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/terminal-window-line-32.png') }}">
+				<span class="title">{{ vnfi.vnf.vnfi_name }}</span>
+
+				{% if vnfi.vnf.status == 'In Service' %}
+				<span class="vnfi-badge-green">{{ vnfi.vnf.status }}</span>
+				{% else %}
+				<span class="vnfi-badge-red">{{ vnfi.vnf.status }}</span>
+				{% endif %}
+
+				{% if vnfi.vnf.lifecycle_operation %}
+				{% if vnfi.vnf.lifecycle_operation == 'Inhibit' %}
+				<span class="vnfi-badge-grey">{{ vnfi.vnf.lifecycle_operation }}</span>
+				{% elif vnfi.vnf.lifecycle_operation == 'Update' %}
+				<span class="vnfi-badge-orange">{{ vnfi.vnf.lifecycle_operation }}</span>
+				{% else %}
+				<span class="vnfi-badge-orange blinking">{{ vnfi.vnf.lifecycle_operation }}</span>
+				{% endif %}
+				{% endif %}
+			</td>
+			<td>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:left; vertical-align:top; width:350px;">
+				<span class="spec-key">id</span><span class="spec-val">{{ vnfi.vnf.vnfi_id }}</span></br>
+				<span class="spec-key">version</span><span class="spec-val">{{ vnfi.vnf.version }}</span></br>
+				<span class="spec-key">flavor</span><span class="spec-val">{{ vnfi.vnf.flavor_id }}</span></br>
+				<span class="spec-key">create</span><span class="spec-val">{{ vnfi.vnf.create_time }}</span></br>
+				<span class="spec-key">ems</span><span class="spec-val">{{ vnfi.vnf.ems_ip }}</span></br>
+			</td>
+			<td style="text-align:left; vertical-align:top; width:350px;">
+				<span class="spec-key">ns</span><span class="spec-val">{{ vnfi.vnf.nsi_name }}</span></br>
+				<span class="spec-key">ns-id</span><span class="spec-val">{{ vnfi.vnf.nsi_id }}</span></br>
+				<span class="spec-key">vnf</span><span class="spec-val">{{ vnfi.vnf.vnfd_name }}</span></br>
+				<span class="spec-key">vnfd-id</span>
+				<a href="/vnf/packages/{{ vnfi.vnf.vnfd_id }}">
+					<span id="vnfd-id" class="spec-val">{{ vnfi.vnf.vnfd_id }}</span>
+					<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/share-box-line-12.png') }}">
+				</a></br>
+				<span class="spec-key">provider</span><span class="spec-val">{{ vnfi.vnf.provider }}</span></br>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:left; vertical-align:top;" colspan="2">
+				<span class="spec-key">settings</span>
+				<span class="op-button" onClick="open_settings_popup('VDUs');">VDUs</span>
+				<span class="spec-key">operations</span>
+				<span class="op-button" onClick="open_lcop_popup('scale');">Scale</span>
+				<span class="op-button" onClick="open_lcop_popup('move-volume');">Move volume</span>
+				<span class="op-button" onClick="open_lcop_popup('terminate');">Terminate</span>
+			</td>
+		</tr>
+	</table>
+</div>
+<!-- // General information -->
+
+<!-- Config-params -->
+<table class="screen-frame list">
+	<tr>
+		<th colspan="2">Config-params</th>
+	</tr>
+	<tr>
+
+		{% if vnfi.vnf.config_parameter is not defined %}
+		<td style="text-align:center; vertical-align:top;"> No data </td>
+		{% else %}
+
+		{% set lc = (vnfi.vnf.config_parameter|length/2)|round|int %}
+		{% if lc == 1 %}
+		{% set lc = 2 %}
+		{% endif %}
+
+		{% for cp in vnfi.vnf.config_parameter %}
+
+		{% if loop.index % lc == 1 %}
+		<td style="text-align:left; vertical-align:top; width:50%;">
+		{% endif %}
+		<span class="spec-key">{{ loop.index }} </span><span class="spec-val-green"> {{ cp.param_id }}</span>:<span class="spec-val">{{ cp.value }}</span></br>
+		{% if loop.index % lc == 0 %}
+		</td>
+		{% endif %}
+
+		{% endfor %}
+
+		{% endif %}
+
+	</tr>
+</table>
+<!-- // Config-params -->
+
+<!-- Assurance -->
+<table class="screen-frame list">
+	<tr>
+		<th colspan="10">Assurance - {{ vnfi.vnf.flavor_id }}</th>
+	</tr>
+	{% for ap in vnfi.vnf.assurance_parameter %}
+	{% if loop.index % 4 == 1 %}
+	<tr>
+		{% endif %}
+		<td style="text-align:left; vertical-align:top; text-align:left;">
+			<span class="spec-key" style="color:green;">{{ ap.param_id }}</span></br>
+			<span style="font-size:24px;">{{ ap.current_value }}</span><span class="spec-val">/ {{ ap.value }}</span>
+		</td>
+		{% if loop.index % 4 == 0 %}
+	</tr>
+	{% endif %}
+	{% endfor %}
+
+	{% if vnfi.vnf.assurance_parameter|length == 0 %}
+	<tr>
+		<td style="text-align:center; vertical-align:top;"> No data </td>
+	</tr>
+	{% endif %}
+
+</table>
+<!-- // Assurance -->
+
+<!-- VNFC instances -->
+<table class="screen-frame list">
+	<tr>
+		<th colspan="10">VNFC instances</th>
+	</tr>
+	{% for ci in vnfcis.components|sort(attribute='vnfci_name') %}
+	<tr>
+		<td style="text-align:left; vertical-align:top; width=50%;">
+			<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/terminal-box-fill.png') }}">
+			<span style="font-family:Oswald; font-size:18px;vertical-align:middle;">{{ ci.vnfci_name }}</span>
+			<span class="op-button" style="display:inline-block;vertical-align:middle;" onClick="open_vnc_console('{{ ci.vm_id }}', '{{ ci.vnfci_name }}', '{{ ci.vim_name }}');">Console</span><br>
+			<span class="spec-key">id</span><span class="spec-val">{{ ci.vnfci_id }}</span></br>
+			<span class="spec-key">core</span><span class="spec-val">{{ ci.num_vpu }}</span>
+			<span class="spec-key">memory</span><span class="spec-val">{{ (ci.total_memory/1024)|round|int }}</span>
+			<span class="spec-key">disk</span><span class="spec-val">{{ ci.size_gb }}</span></br>
+			<span class="spec-key">status</span><span class="spec-val">{{ ci.status }}</span>
+			<span class="spec-key">ha-state</span><span class="spec-val">{{ ci.ha_state }}</span></br>
+			<span class="spec-key">vdu</span><span class="spec-val">{{ ci.vdu_id }}</span>
+			<span class="spec-key">cco-ip</span><span class="spec-val">{{ ci.cco_ip }}</span></br>
+			<span class="spec-key">vm-id</span><span class="spec-val">{{ ci.vm_id }}</span></br>
+			<span class="spec-key">host</span><span class="spec-val">{{ ci.host_name }}</span></br>
+			<span class="spec-key">vim-name</span><span class="spec-val">{{ ci.vim_name }}</span>
+			<span class="spec-key">vim-id</span><span class="spec-val">{{ ci.vim_id }}</span>
+		</td>
+		<td style="text-align:left; vertical-align:top;">
+			<span class="spec-key">network-interfaces</span></br>
+			{% for ni in ci.network %}
+			<span class="spec-val-green">{{ ni.cp_id }}</span>:
+			<span class="spec-key">ip</span><span class="spec-val">{{ ni.ip }}</span>
+			<span class="spec-key">ivl</span><span class="spec-val">{{ ni.ivl_ref }}</span></br>
+			{% endfor %}
+		</td>
+	</tr>
+	{% endfor %}
+</table>
+<!-- // VNFC instances -->
+
+
+<!-- The lifecycle operations modal -->
+<div id="lcop-modal" class="modal">
+
+	<input type="hidden" id="vnfi-id" value="{{ vnfi.vnf.vnfi_id }}">
+	<input type="hidden" id="vnfi-name" value="{{ vnfi.vnf.vnfi_name }}">
+	<input type="hidden" id="lcop-name" value="">
+	<input type="hidden" id="pkg-info" value="">
+
+	<div class="w700 modal-content">
+		<div style="border-bottom: 1px solid #aaa; padding-bottom:10px; margin-bottom:20px;">
+			<img style="vertical-align:middle;" src="{{ url_for('static', filename='images/compass-discover-line-32.png') }}">
+			<span id="lcop-modal-title" class="modal-title" style="vertical-align:middle;"></span>
+		</div>
+		<div id="modal-lcop-info"> </div>
+		<table style="margin-top:20px;">
+			<tr>
+				<td id="lcop-modal-confirm" width="50%" class="modal-button">
+					<div style="width:100%;" class="confirm" onClick="run_lcop();">
+						<span> RUN </span>
+					</div>
+				</td>
+				<td class="modal-button">
+					<div style="width:100%;" class="cancel" onClick="close_lcop_popup();">
+						<span> CLOSE </span>
+					</div>
+				</td>
+			</tr>
+		</table>
+		<div id="output-result"> </div>
+	</div>
+</div>
+<!-- // The lifecycle operations modal -->
+
+
+<!-- The settings modal -->
+<div id="settings-modal" class="modal">
+
+	<div class="w700 modal-content">
+		<div style="border-bottom: 1px solid #aaa; padding-bottom:10px; margin-bottom:20px;">
+			<img style="vertical-align:middle;" src="{{ url_for('static', filename='images/settings-3-line.png') }}">
+			<span id="settings-modal-title" class="modal-title" style="vertical-align:middle;"></span>
+		</div>
+		<div id="modal-settings-info"> </div>
+		<table style="margin-top:20px;">
+			<tr>
+				<td width="50%" class="modal-button">
+					<div style="width:100%;" class="cancel" onClick="close_settings_popup();">
+						<span> CLOSE </span>
+					</div>
+				</td>
+			</tr>
+		</table>
+		<div id="output-result"> </div>
+	</div>
+</div>
+<!-- // The settings modal -->
+
+<div class="screen-frame" style="padding:100px 0 0 0;"></div>
+</body>
+</html>

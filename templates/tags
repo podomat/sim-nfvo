@@ -1,0 +1,47 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+add_an_ns	vnf-records.html	/^function add_an_ns() {$/;"	f
+add_an_vnfr	vnf-records.html	/^function add_an_vnfr(elem) {$/;"	f
+close_lcop_popup	vnf-instance.html	/^function close_lcop_popup() {$/;"	f
+close_lcop_popup	vnf-instances.html	/^function close_lcop_popup() {$/;"	f
+close_lcop_popup	vnf-records.html	/^function close_lcop_popup() {$/;"	f
+close_settings_popup	vnf-instance.html	/^function close_settings_popup() {$/;"	f
+del_a_vnfr	vnf-records.html	/^function del_a_vnfr(elem) {$/;"	f
+del_an_ns	vnf-records.html	/^function del_an_ns(elem) {$/;"	f
+extend_vnfrs	vnf-records.html	/^function extend_vnfrs(elem) {$/;"	f
+get_vnfrs	vnf-records.html	/^function get_vnfrs(elem) {$/;"	f
+instantiate_vnf	vnf-records.html	/^function instantiate_vnf() {$/;"	f
+lcop_ajax	vnf-instance.html	/^function lcop_ajax(method, uri, system, body) {$/;"	f
+lcop_ajax	vnf-instances.html	/^function lcop_ajax(method, uri, system, body) {$/;"	f
+make_lcop_popup_move_volume	vnf-instance.html	/^function make_lcop_popup_move_volume(lcop) {$/;"	f
+make_lcop_popup_scale	vnf-instance.html	/^function make_lcop_popup_scale() {$/;"	f
+make_lcop_popup_terminate_clean	vnf-instance.html	/^function make_lcop_popup_terminate_clean(lcop) {$/;"	f
+make_lcop_popup_vnfi_base_info	vnf-records.html	/^function make_lcop_popup_vnfi_base_info() {$/;"	f
+make_settings_popup_vdus	vnf-instance.html	/^function make_settings_popup_vdus() {$/;"	f
+make_settings_popup_vdus_op_save	vnf-instance.html	/^function make_settings_popup_vdus_op_save() {$/;"	f
+make_settings_popup_vdus_op_template	vnf-instance.html	/^function make_settings_popup_vdus_op_template() {$/;"	f
+open_lcop_popup	vnf-instance.html	/^function open_lcop_popup(lcop) {$/;"	f
+open_lcop_popup	vnf-instances.html	/^function open_lcop_popup(lcop, elem) {$/;"	f
+open_lcop_popup	vnf-records.html	/^function open_lcop_popup(lcop) {$/;"	f
+open_settings_popup	vnf-instance.html	/^function open_settings_popup(obj) {$/;"	f
+output_result_job_refresh	vnf-instance.html	/^function output_result_job_refresh(joburl) {$/;"	f
+output_result_job_refresh	vnf-instances.html	/^function output_result_job_refresh(joburl) {$/;"	f
+output_result_job_refresh	vnf-records.html	/^function output_result_job_refresh(joburl) {$/;"	f
+reload	vnf-eventlog.html	/^function reload(job_id) {$/;"	f
+reload_vnfci_prog	vnf-eventlog.html	/^function reload_vnfci_prog(vnfcis) {$/;"	f
+reload_vnfi_prog	vnf-eventlog.html	/^function reload_vnfi_prog(phase) {$/;"	f
+run_lcop	vnf-instance.html	/^function run_lcop() {$/;"	f
+run_lcop	vnf-instances.html	/^function run_lcop() {$/;"	f
+run_lcop	vnf-records.html	/^function run_lcop() {$/;"	f
+save_vnfr	vnf-records.html	/^function save_vnfr() {$/;"	f
+set_modal_lcop_abort_info	vnf-instances.html	/^function set_modal_lcop_abort_info(vnfi_id) {$/;"	f
+toggle_jobchk_result_text	vnf-instance.html	/^function toggle_jobchk_result_text() {$/;"	f
+toggle_jobchk_result_text	vnf-instances.html	/^function toggle_jobchk_result_text() {$/;"	f
+toggle_jobchk_result_text	vnf-records.html	/^function toggle_jobchk_result_text() {$/;"	f
+toggle_req_result_text	vnf-instance.html	/^function toggle_req_result_text() {$/;"	f
+toggle_req_result_text	vnf-instances.html	/^function toggle_req_result_text() {$/;"	f
+toggle_req_result_text	vnf-records.html	/^function toggle_req_result_text() {$/;"	f

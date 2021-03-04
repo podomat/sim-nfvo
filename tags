@@ -1,0 +1,56 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+Flask	nfvo.py	/^from flask import Flask, Response, render_template, request$/;"	i
+MySQLdb	nfvo.py	/^import MySQLdb$/;"	i
+Path	nfvo.py	/^from pathlib import Path$/;"	i
+Query	nfvo.py	/^from tinydb import TinyDB, Query$/;"	i
+Response	nfvo.py	/^from flask import Flask, Response, render_template, request$/;"	i
+TinyDB	nfvo.py	/^from tinydb import TinyDB, Query$/;"	i
+app	nfvo.py	/^app = Flask(__name__)$/;"	v
+clean	nfvo.py	/^def clean(vnfi_id):$/;"	f
+db_name	nfvo.py	/^db_name = 'vnfm'$/;"	v
+db_pw	nfvo.py	/^db_pw = 'telco1234'$/;"	v
+db_select	nfvo.py	/^def db_select(query):$/;"	f
+db_server	nfvo.py	/^db_server = 'localhost'$/;"	v
+db_user	nfvo.py	/^db_user = 'vnfm'$/;"	v
+delete_vnfcis_settings	nfvo.py	/^def delete_vnfcis_settings(vnfi_id):$/;"	f
+get_cms_token	nfvo.py	/^def get_cms_token(db):$/;"	f
+get_job_status	nfvo.py	/^def get_job_status(job_id):$/;"	f
+heartbeat	nfvo.py	/^def heartbeat():$/;"	f
+http_send_to_vnfm	nfvo.py	/^def http_send_to_vnfm(method, uri, body, db):$/;"	f
+httplib	nfvo.py	/^import httplib$/;"	i
+instantiate	nfvo.py	/^def instantiate():$/;"	f
+json	nfvo.py	/^import json$/;"	i
+move_volume	nfvo.py	/^def move_volume(vnfi_id, vnfci_id):$/;"	f
+network_service	nfvo.py	/^def network_service(ns_id):$/;"	f
+network_services	nfvo.py	/^def network_services():$/;"	f
+op_job_status	nfvo.py	/^def op_job_status(system, job_id):$/;"	f
+op_move_volume	nfvo.py	/^def op_move_volume():$/;"	f
+os	nfvo.py	/^import os$/;"	i
+pre_instances	nfvo.py	/^def pre_instances():$/;"	f
+relay_operation	nfvo.py	/^def relay_operation():$/;"	f
+relay_read	nfvo.py	/^def relay_read():$/;"	f
+render_template	nfvo.py	/^from flask import Flask, Response, render_template, request$/;"	i
+request	nfvo.py	/^from flask import Flask, Response, render_template, request$/;"	i
+scale	nfvo.py	/^def scale(vnfi_id):$/;"	f
+server_ip	nfvo.py	/^server_ip = 'localhost'$/;"	v
+server_port	nfvo.py	/^server_port = 5000$/;"	v
+set_vdus_settings_from_vnfr	nfvo.py	/^def set_vdus_settings_from_vnfr(vnfi_id, vnfi_name):$/;"	f
+settings_vnfc_instances	nfvo.py	/^def settings_vnfc_instances(vnfi_id):$/;"	f
+site_name	nfvo.py	/^site_name = 'Seocho Lab.'$/;"	v
+sortInstTime	nfvo.py	/^	def sortInstTime(item):$/;"	f	function:set_vdus_settings_from_vnfr
+terminate	nfvo.py	/^def terminate(vnfi_id):$/;"	f
+time	nfvo.py	/^import time$/;"	i
+uuid	nfvo.py	/^import uuid$/;"	i
+vnf_instance	nfvo.py	/^def vnf_instance(vnfi_id):$/;"	f
+vnf_instances	nfvo.py	/^def vnf_instances():$/;"	f
+vnf_package	nfvo.py	/^def vnf_package(vnfd_id):$/;"	f
+vnf_packages	nfvo.py	/^def vnf_packages():$/;"	f
+vnf_record	nfvo.py	/^def vnf_record(ns_id, vnfr_id):$/;"	f
+vnf_records	nfvo.py	/^def vnf_records(ns_id):$/;"	f
+vnfm_ip	nfvo.py	/^vnfm_ip = 'localhost'$/;"	v
+vnfm_port	nfvo.py	/^vnfm_port = 8080$/;"	v

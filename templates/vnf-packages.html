@@ -1,0 +1,84 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>VNF packages</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='stylesheets/styles.css') }}">
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+
+<style>
+</style>
+
+</head>
+<body>
+<style>
+.barmenu { width:60px; }
+.barmenu-delimeter { width:1px; color:#ccc; }
+</style>
+<div class="topbar">
+	<table class="screen-frame">
+		<tr>
+			<td style="text-align:left; font-family:Acme; font-size: 20px; padding:0; ">NFVCTL</td>
+			<td class="barmenu"><a href="/vnf/instances">Instances</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/packages">Packages</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/records">Records</a></td>
+			<td class="barmenu-delimeter">|</td>
+			<td class="barmenu"><a href="/vnf/eventLogs">Logs</a></td>
+		</tr>
+	</table>
+</div>
+
+<div class="screen-frame" style="padding:50px 0 0 0;"></div>
+<div class="screen-frame">
+	<table id="titlebar">
+		<tr>
+			<td class="title">VNF packages</td>
+		</tr>
+		<tr>
+			<td class="site">{{ site_name }}</td>
+		</tr>
+	</table>
+</div>
+<table id="contents" class="screen-frame list">
+	<tbody>
+	<tr>
+		<th width="280px">VNF package</th>
+		<th width="70px">Provider</th>
+		<th width="70px">Version</th>
+		<th width="70px">Status</th>
+		<th width="30px">VNFI</th>
+		<th width="70px">Desc-Ver</th>
+		<th width="80px">Create</th>
+		<th>Description</th>
+	</tr>
+	{% for pkg in pkgs|sort(attribute='create_time',reverse=true) %}
+	<tr>
+		<td style="text-align:left; padding:0 0 0 10px;">
+			<img style="display:inline-block;vertical-align:middle;" src="{{ url_for('static', filename='images/briefcase-fill-18.png') }}">
+			{% if pkg.status == 'Enabled' or pkg.status == 'Disabled' %}
+			<a href="{{ pkg.page_uri }}"><span style="font-size:16px; vertical-align:middle;">{{ pkg.name }}</span></a>
+			{% else %}
+			<span style="font-size:16px; vertical-align:middle;">{{ pkg.name }}</span>
+			{% endif %}
+			</br>
+			<span style="font-size:12px; color:#999;">{{ pkg.vnfd_id }}</span>
+		</td>
+		<td>{{ pkg.provider }}</td>
+		<td>{{ pkg.version }}</td>
+		{% if pkg.status == 'Enabled' %}
+		<td style="color:green;">{{ pkg.status }}</td>
+		{% else %}
+		<td style="color:red;">{{ pkg.status }}</td>
+		{% endif %}
+		<td>{{ pkg.vnfi_count }}</td>
+		<td>{{ pkg.descriptor_version }}</td>
+		<td>{{ pkg.create_time }}</td>
+		<td style="text-align:left; padding:0 0 0 10px;">{{ pkg.description }}</td>
+	</tr>
+	{% endfor %}
+	</tbody>
+</table>
+<div class="screen-frame" style="padding:100px 0 0 0;"></div>
+</body>
+</html>
