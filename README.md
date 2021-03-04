@@ -1,5 +1,5 @@
 # SIM-NFVO - NFVO simulator with Web UI
-For ETSI NFVO MANO NFVO simulator including Web UI
+For ETSI NFV MANO NFV Orchestrator simulator including Web UI
 
 # Features
 - VNF Lifecycle Management
